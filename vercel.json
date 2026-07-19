@@ -1,0 +1,30 @@
+{
+  "services": {
+    "souq-baladi-frontend": {
+      "root": ".",
+      "framework": "nextjs",
+      "buildCommand": "npm install && npm run build"
+    },
+    "souq-baladi-backend": {
+      "root": ".",
+      "framework": "nextjs",
+      "buildCommand": "cd backend && npm install && npm run build"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/souq-baladi-frontend(/.*)?",
+      "destination": {
+        "type": "service",
+        "service": "souq-baladi-frontend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "souq-baladi-backend"
+      }
+    }
+  ]
+}
