@@ -1,0 +1,330 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  CRAFTSMAN
+}
+
+enum Condition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String?
+  name             String
+  phone            String?
+  avatar           String?
+  cover            String?
+  bio              String?
+  location         String?
+  role             Role      @default(USER)
+  verified         Boolean   @default(false)
+  twoFactorEnabled Boolean   @default(false)
+  googleId         String?   @unique
+  facebookId       String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  listings              Listing[]
+  animalListings        AnimalListing[]
+  craftsmanProfile      CraftsmanProfile?
+  ratingsGiven          Rating[]
+  ratingsReceived       Rating[]
+  conversations         ConversationParticipant[]
+  messagesSent          Message[]
+  notifications         Notification[]
+  favorites             Favorite[]
+  reportsSubmitted      Report[]
+  reportsReceived       Report[]           @relation("ReportedUser")
+  subscription          Subscription?
+
+  @@index([email])
+  @@index([googleId])
+  @@index([facebookId])
+}
+
+model Category {
+  id            String         @id @default(uuid())
+  name          String
+  nameAr        String
+  slug          String         @unique
+  icon          String?
+  color         String?
+  order         Int            @default(0)
+  subcategories Subcategory[]
+  listings      Listing[]
+
+  @@index([slug])
+}
+
+model Subcategory {
+  id         String     @id @default(uuid())
+  name       String
+  nameAr     String
+   String     @unique
+  categoryId String
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listings   Listing[]
+
+  @@index([slug])
+  @@index([categoryId])
+}
+
+model Listing {
+  id            String    @id @default(uuid())
+  title         String
+  description   String
+  price         Float
+  negotiable    Boolean   @default(false)
+  condition     Condition @default(GOOD)
+  city          String
+  location      String?
+  latitude      Float?
+  longitude     Float?
+  images        String[]
+  video         String?
+  categoryId    String
+  subcategoryId String?
+  userId        String
+  views         Int       @default(0)
+  likes         Int       @default(0)
+  isFeatured    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  category   Category    @relation(fields: [categoryId], references: [id])
+  subcategory Subcategory? @relation(fields: [subcategoryId], references: [id])
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animal     AnimalListing?
+  favorites  Favorite[]
+  reports    Report[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([city])
+  @@index([createdAt])
+}
+
+model AnimalListing {
+  id                String   @id @default(uuid())
+  listingId         String   @unique
+  animalType        String
+  breed             String?
+  age               Int?
+  gender            Gender?
+  healthStatus      String?
+  vaccinated        Boolean  @default(false)
+  vaccinatedDetails String?
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model CraftsmanProfile {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  profession       String
+  professionAr     String
+  yearsOfExperience Int?
+  priceRange       String?
+  available        Boolean           @default(true)
+  phone            String?
+  whatsapp         String?
+  bio              String?
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gallery          CraftsmanGallery[]
+  services         CraftsmanService[]
+  ratings          Rating[]
+
+  @@index([userId])
+}
+
+model CraftsmanGallery {
+  id           String           @id @default(uuid())
+  craftsmanId  String
+  imageUrl     String
+  caption      String?
+  order        Int              @default(0)
+  craftsman    CraftsmanProfile @relation(fields: [craftsmanId], references: [id], onDelete: Cascade)
+
+  @@index([craftsmanId])
+}
+
+model CraftsmanService {
+  id           String           @id @default(uuid())
+  craftsmanId  String
+  name         String
+  nameAr       String
+  price        Float
+  description  String?
+  craftsman    CraftsmanProfile @relation(fields: [craftsmanId], references: [id], onDelete: Cascade)
+
+  @@index([craftsmanId])
+}
+
+model Rating {
+  id           String           @id @default(uuid())
+  userId       String
+  craftsmanId  String
+  rating       Int
+  comment      String?
+  createdAt    DateTime         @default(now())
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  craftsman    CraftsmanProfile @relation(fields: [craftsmanId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, craftsmanId])
+  @@index([craftsmanId])
+}
+
+model Conversation {
+  id          String                 @id @default(uuid())
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([createdAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  type           MessageType  @default(TEXT)
+  fileUrl        String?
+  isRead         Boolean      @default(false)
+  isDeleted      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+}
+
+model Report {
+  id           String     @id @default(uuid())
+  reporterId   String
+  listingId    String?
+  userId       String?
+  craftsmanId  String?
+  reason       String
+  description  String?
+  status       ReportStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+  reporter     User       @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  listing      Listing?   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user         User?      @relation("ReportedUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model City {
+  id       String    @id @default(uuid())
+  name     String
+  nameAr   String
+  slug     String    @unique
+  imageUrl String?
+
+  @@index([slug])
+}
+
+model Subscription {
+  id        String           @id @default(uuid())
+  userId    String           @unique
+  plan      SubscriptionPlan @default(FREE)
+  startDate DateTime         @default(now())
+  endDate   DateTime?
+  features  String[]
+  isActive  Boolean          @default(true)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
